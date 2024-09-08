@@ -1,0 +1,187 @@
+import heapq
+from collections import defaultdict
+from PIL import Image
+import shutil
+import os
+
+
+# Node class for Huffman tree
+class HuffmanNode:
+    def __init__(self, freq, symbol, left=None, right=None):
+        self.freq = freq
+        self.symbol = symbol
+        self.left = left
+        self.right = right
+
+    def __lt__(self, other):
+        return self.freq < other.freq
+
+
+# Function to build Huffman tree
+def build_huffman_tree(freq_table):
+    pq = [HuffmanNode(freq, sym) for sym, freq in freq_table.items()]
+    heapq.heapify(pq)
+
+    while len(pq) > 1:
+        left_node = heapq.heappop(pq)
+        right_node = heapq.heappop(pq)
+        internal_node = HuffmanNode(left_node.freq + right_node.freq, None, left_node, right_node)
+        heapq.heappush(pq, internal_node)
+
+    return pq[0]
+
+
+# Function to generate Huffman codes
+def generate_huffman_codes(root, current_code, huffman_codes):
+    if root is None:
+        return
+
+    if root.symbol is not None:
+        huffman_codes[root.symbol] = current_code
+        return
+
+    generate_huffman_codes(root.left, current_code + "0", huffman_codes)
+    generate_huffman_codes(root.right, current_code + "1", huffman_codes)
+
+
+# Function to compress the image using Huffman coding
+def compress_image(image_path):
+    # Open the image file
+    image = Image.open(image_path)
+
+    # Convert the image to grayscale
+    image = image.convert("L")
+
+    # Get the pixel data
+    pixel_data = list(image.getdata())
+
+    # Step 1: Calculate frequency of each symbol (pixel value) in the image data
+    frequency_table = defaultdict(int)
+    for symbol in pixel_data:
+        frequency_table[symbol] += 1
+
+    # Step 2: Build Huffman tree
+    huffman_tree = build_huffman_tree(frequency_table)
+
+    # Step 3: Generate Huffman codes
+    huffman_codes = {}
+    generate_huffman_codes(huffman_tree, "", huffman_codes)
+
+    # Step 4: Compress the image using Huffman codes
+    compressed_data = ""
+    for symbol in pixel_data:
+        compressed_data += huffman_codes[symbol]
+
+    # Create a directory for the compressed file if it doesn't exist
+    compressed_dir = "/content/sample_data"
+    os.makedirs(compressed_dir, exist_ok=True)
+
+    # Save compressed data to a file
+    compressed_file_path = os.path.join(compressed_dir, "compressed.bin")
+    with open(compressed_file_path, "w") as file:
+        file.write(compressed_data)
+
+    return compressed_file_path
+
+
+# Sample usage
+image_path = "/content/image.png"
+
+# Compress the image and get the path of the compressed file
+compressed_file_path = compress_image(image_path)
+
+# Create the destination directory if it doesn't exist
+download_location = "/content/drive/MyDrive"
+os.makedirs(download_location, exist_ok=True)
+
+# Move the compressed file to the destination directory
+shutil.move(compressed_file_path, download_location)
+************************************************************
+import os
+from collections import defaultdict
+
+
+# Node class for Huffman tree
+class HuffmanNode:
+    def __init__(self, freq, symbol, left=None, right=None):
+        self.freq = freq
+        self.symbol = symbol
+        self.left = left
+        self.right = right
+
+    def __lt__(self, other):
+        return self.freq < other.freq
+
+
+# Function to rebuild Huffman tree from the frequency table
+def rebuild_huffman_tree(freq_table):
+    pq = [HuffmanNode(freq, sym) for sym, freq in freq_table.items()]
+    heapq.heapify(pq)
+
+    while len(pq) > 1:
+        left_node = heapq.heappop(pq)
+        right_node = heapq.heappop(pq)
+        internal_node = HuffmanNode(left_node.freq + right_node.freq, None, left_node, right_node)
+        heapq.heappush(pq, internal_node)
+
+    return pq[0]
+
+
+# Function to decompress the file using Huffman codes
+def decompress_file(compressed_file_path, output_file_path, huffman_codes):
+    # Read the compressed data from the file
+    with open(compressed_file_path, "r") as file:
+        compressed_data = file.read()
+
+    # Reconstruct the frequency table from the compressed data
+    frequency_table = defaultdict(int)
+    code = ""
+    for bit in compressed_data:
+        code += bit
+        if code in huffman_codes:
+            symbol = huffman_codes[code]
+            frequency_table[symbol] += 1
+            code = ""
+
+    # Rebuild the Huffman tree
+    huffman_tree = rebuild_huffman_tree(frequency_table)
+
+    # Decode the compressed data using the Huffman tree
+    current_node = huffman_tree
+    decoded_data = bytearray()
+    total_bits = len(compressed_data)
+    processed_bits = 0
+    for bit in compressed_data:
+        processed_bits += 1
+        if bit == "0":
+            current_node = current_node.left
+        elif bit == "1":
+            current_node = current_node.right
+
+        if current_node.symbol is not None:
+            decoded_data.append(current_node.symbol)
+            current_node = huffman_tree
+
+        # Print progress
+        progress = processed_bits / total_bits * 100
+        print(f"Decompression progress: {progress:.2f}%")
+
+    # Write the decompressed data to the output file
+    with open(output_file_path, "wb") as file:
+        file.write(decoded_data)
+
+    return output_file_path
+
+
+# Provide the paths for the compressed file and the output file
+compressed_file_path = "/content/sample_data/compressed.bin"
+output_file_path = "/content/sample_data/decompressed.png"
+
+# Provide the Huffman codes dictionary used during compression
+huffman_codes = {
+    # Provide the Huffman codes mapping here
+    # Example: symbol: code
+}
+
+# Decompress the file
+decompressed_file_path = decompress_file(compressed_file_path, output_file_path, huffman_codes)
